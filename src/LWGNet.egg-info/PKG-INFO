@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: LWGNet
+Version: 1.0.0
+Requires-Dist: matplotlib>=3.10.9
+Requires-Dist: scipy>=1.17.1
+Requires-Dist: torch>=2.6.0
