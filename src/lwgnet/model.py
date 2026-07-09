@@ -13,40 +13,39 @@ from torch import nn
 
 
 class reconModel(nn.Module):
-    def __init__(self, opts, device):
+    def __init__(self, opts):
         super().__init__()
-        self.device = device
         self.CTF = opts["P"]
         self.N_obj = opts["N_obj"]
         self.nlayers = opts["numLayers"]
         self.init_val = [0.01, 0.015, 0.02, 0.04, 0.05]
         self.forwardLayer1 = nn.ModuleList([
-            forwardLayerWF(opts, self.CTF, self.device).to(self.device) for _ in range(self.nlayers)
+            forwardLayerWF(opts, self.CTF) for _ in range(self.nlayers)
         ])
         self.convLayer1 = nn.ModuleList([
-            complexConv(in_channels=opts["channels"], out_channels=128, kernel_size=(3, 3), padding=1, bias=False).to(
-                self.device,
-            )
+            complexConv(in_channels=opts["channels"], out_channels=128, kernel_size=(3, 3), padding=1, bias=False)
             for i in range(self.nlayers)
         ])
         self.convLayer2 = nn.ModuleList([
-            complexConv(in_channels=128, out_channels=64, kernel_size=(3, 3), padding=1, bias=False).to(self.device)
+            complexConv(in_channels=128, out_channels=64, kernel_size=(3, 3), padding=1, bias=False)
             for i in range(self.nlayers)
         ])
         self.convLayer3 = nn.ModuleList([
-            complexConv(in_channels=64, out_channels=32, kernel_size=(3, 3), padding=1, bias=False).to(self.device)
+            complexConv(in_channels=64, out_channels=32, kernel_size=(3, 3), padding=1, bias=False)
             for i in range(self.nlayers)
         ])
         self.Lin1 = nn.ModuleList([
-            gainLayer(in_features=32, out_features=1, init_val=self.init_val[i]).to(self.device)
+            gainLayer(in_features=32, out_features=1, init_val=self.init_val[i])
             for i in range(self.nlayers)
         ])
 
     def forward(self, I, Ns):
 
+        device = I.device
+
         cen0 = tuple(n // 2 for n in self.N_obj)
-        x_init = init_obj_field(I[:, 0, :, :], scale=2)
-        x = torch.tensor(x_init, dtype=torch.cfloat, device=self.device)
+        x_init = init_obj_field(I[:, 0, :, :], scale=1) #2
+        x = torch.tensor(x_init, dtype=torch.cfloat, device=device)
 
         for layer, conv1, conv2, conv3, gain1 in zip(
             self.forwardLayer1,
@@ -55,8 +54,8 @@ class reconModel(nn.Module):
             self.convLayer3,
             self.Lin1,
         ):
-            phi = x.to(self.device)
-            dx = layer(phi, I.to(self.device), Ns.squeeze())
+            phi = x
+            dx = layer(phi, I, Ns.squeeze())
             dx = conv1(dx)
             dx = Ctanh(dx)
             dx = conv2(dx)
@@ -69,4 +68,4 @@ class reconModel(nn.Module):
 
         x = x.unsqueeze(1)
 
-        return x
+        return x.abs().to(torch.get_default_dtype())
